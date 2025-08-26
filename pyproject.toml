@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "tool-language-video-translate"
+version = "0.1.0"
+description = ""
+authors = ["David Tito <dtitoin10@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "tool_language_video_translate" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+# Intalar manualmente o whisper com o seguinte comando apos intalar poetry:
+# $ poetry run pip install git+https://github.com/openai/whisper.git --no-build-isolation
+deepl = "^1.22.0"
+azure-cognitiveservices-speech = "^1.45.0"
+pyyaml = "^6.0.2"
+dotenv = "^0.9.9"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
