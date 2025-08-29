@@ -1,7 +1,12 @@
 # tts.py
+from typing import List
 import azure.cognitiveservices.speech as speechsdk
 import os
 from dotenv import load_dotenv
+
+import asyncio
+import edge_tts
+from tool_language_video_translate.types import TimedLine
 
 def synthesize_speech(text:str, output_path:str, voice:str="pt-BR-MacerioMultilingualNeural"):
     """
@@ -35,3 +40,44 @@ def synthesize_speech(text:str, output_path:str, voice:str="pt-BR-MacerioMultili
 
     except Exception as e:
         raise RuntimeError(f"An error when synthesizing speech: {e}")
+    
+
+async def synthesize_segment_tts(text: str, rate_pct: int, outfile: str, voice: str ='pt-BR-MacerioMultilingualNeural'):
+    """Gera áudio via edge-tts com SSML controlando 'rate'.
+    rate_pct=100 -> normal; 120 -> +20% (mais rápido); 80 -> -20% (mais devagar)
+    """
+    # Edge TTS aceita rate em porcentagem com sinal: +20%, -15%, etc.
+    delta = rate_pct - 100
+    sign = "+" if delta >= 0 else ""
+    rate_str = f"{sign}{delta}%"
+    # ssml = f"""
+    # <speak version='1.0' xml:lang='en-US'>
+    #     <voice name='{voice}'>
+    #         <prosody rate='{rate_str}'>
+    #             {text}
+    #         </prosody>
+    #     </voice>
+    # </speak>
+    # """.strip()
+
+    # communicate = edge_tts.Communicate(ssml=ssml, voice=voice)
+    communicate = edge_tts.Communicate(text, voice, rate=rate_str)
+    await communicate.save(outfile)
+
+
+async def synthesize_all(lines: List[TimedLine], tmpdir: str,
+                        voice: str = 'pt-BR-MacerioMultilingualNeural') -> List[str]:
+    """
+    Run all TTS synthesis for the given lines.
+    """
+    tasks = []
+    outfiles = []
+    os.makedirs(tmpdir, exist_ok=True)
+    for i, line in enumerate(lines):
+        path = os.path.join(tmpdir, f"seg_{i:05d}.mp3")
+        outfiles.append(path)
+        tasks.append(synthesize_segment_tts(text=line.text_translated, 
+                                            rate_pct=line.rate_pct, 
+                                            outfile=path, voice=voice))
+    await asyncio.gather(*tasks)
+    return outfiles
