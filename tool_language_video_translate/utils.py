@@ -5,6 +5,7 @@ import os
 import tempfile
 import math
 from pydub import AudioSegment
+from pydub.effects import speedup
 from tool_language_video_translate.types import TimedLine
 
 def extract_audio(video_path, audio_path="temp_audio.wav"):
@@ -55,6 +56,29 @@ def extra_audio_v2(video_path: str, out_wav: str, sr: int = 16000):
     ])
 
 
+# def build_timeline_audio(lines: List[TimedLine], seg_files: List[str], 
+#                         sr: int = 44100) -> AudioSegment:
+#     """
+#     Create a timeline audio segment from the given lines and segment files.
+#     """
+#     if len(lines) != len(seg_files):
+#         raise ValueError("lines e seg_files com tamanhos diferentes")
+# 
+#     # Duração total pela última marca de tempo
+#     total_ms = int(math.ceil(max(l.end for l in lines) * 1000)) + 500
+#     timeline = AudioSegment.silent(duration=total_ms, frame_rate=sr)
+# 
+#     for line, seg_path in zip(lines, seg_files):
+#         seg = AudioSegment.from_file(seg_path)
+#         start_ms = int(round(line.start * 1000))
+#         # Se o áudio sintetizado ficou maior que o slot, vamos cortar levemente a cauda
+#         slot_ms = int(round((line.end - line.start) * 1000))
+#         if len(seg) > slot_ms:
+#             seg = seg[:slot_ms]
+#         timeline = timeline.overlay(seg, position=start_ms)
+# 
+#     return timeline
+
 def build_timeline_audio(lines: List[TimedLine], seg_files: List[str], 
                         sr: int = 44100) -> AudioSegment:
     """
@@ -72,8 +96,28 @@ def build_timeline_audio(lines: List[TimedLine], seg_files: List[str],
         start_ms = int(round(line.start * 1000))
         # Se o áudio sintetizado ficou maior que o slot, vamos cortar levemente a cauda
         slot_ms = int(round((line.end - line.start) * 1000))
+        #Se o TTs é maior que slot
         if len(seg) > slot_ms:
-            seg = seg[:slot_ms]
+            dur_tts = len(seg)/ 1000
+            dur_slot = slot_ms / 1000
+            factor = dur_tts / dur_slot
+            if factor > 1.2:
+                #Não acelerar mais
+                seg = speedup(seg, playback_speed=1.2)
+                if len(seg) > slot_ms + 300:
+                    seg = seg[:slot_ms + 300].fade_out(200)
+            elif factor > 1.05:
+                seg = speedup(seg, playback_speed=factor)
+            else:
+                seg = seg[:slot_ms].fade_out(200)
+        #Se o TTs for menor
+        elif len(seg) < slot_ms:
+            falta = slot_ms - len(seg)
+            before = falta // 2
+            after = falta - before
+            seg = (AudioSegment.silent(duration=before, frame_rate=sr)
+                    + seg
+                    + AudioSegment.silent(duration=after, frame_rate=sr))
         timeline = timeline.overlay(seg, position=start_ms)
 
     return timeline

@@ -66,7 +66,7 @@ async def synthesize_segment_tts(text: str, rate_pct: int, outfile: str, voice: 
 
 
 async def synthesize_all(lines: List[TimedLine], tmpdir: str,
-                        voice: str = 'pt-BR-MacerioMultilingualNeural') -> List[str]:
+                        voice: str = 'pt-BR-AntonioNeural') -> List[str]:
     """
     Run all TTS synthesis for the given lines.
     """
